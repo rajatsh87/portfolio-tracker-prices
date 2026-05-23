@@ -7,11 +7,15 @@ import com.portfolio.tracker.repository.AssetCatalogRepository;
 import com.portfolio.tracker.repository.PriceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -19,13 +23,13 @@ import java.util.List;
 public class StockPriceScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(StockPriceScheduler.class);
-    
+
     private final StockApiClient stockApiClient;
     private final PriceRepository priceRepository;
     private final AssetCatalogRepository assetCatalogRepository;
 
     public StockPriceScheduler(
-            StockApiClient stockApiClient, 
+            StockApiClient stockApiClient,
             PriceRepository priceRepository,
             AssetCatalogRepository assetCatalogRepository) {
         this.stockApiClient = stockApiClient;
@@ -34,11 +38,9 @@ public class StockPriceScheduler {
     }
 
     @Scheduled(cron = "${portfolio.jobs.stock-sync.cron}", zone = "${portfolio.jobs.stock-sync.zone}")
-    @Transactional
+    @EventListener(ApplicationReadyEvent.class)
     public void syncStockPrices() {
         log.info("Starting daily stock price synchronization batch...");
-
-//        List<String> portfolioTickers = assetCatalogRepository.findPortfolioTickers();
         List<AssetCatalogRepository.AssetProjection> activeAssets = assetCatalogRepository.findPortfolioTickersWithExchange();
 
         if (activeAssets.isEmpty()) {
@@ -50,29 +52,32 @@ public class StockPriceScheduler {
             String baseTicker = asset.getTicker();
             String ticker = baseTicker;
             String exchange = asset.getExchange();
+            boolean alreadyExists = priceRepository.existsByTickerAndExchangeAndTradeDate(
+                    baseTicker,exchange, LocalDate.now());
+            if (alreadyExists) {
+                log.info("Price data already exists for {} on {}. Skipping save.",ticker,LocalDate.now());
+                continue;
+            }
+
             if (exchange!=null && exchange.trim().length()>0) {
                 ticker = baseTicker + "." + exchange;
             }
             try {
                 log.info("searching for ticker symbol :"+ticker);
                 GlobalQuoteResponse response = stockApiClient.fetchDailyPrice(ticker);
-                
+
                 if (response != null && response.getQuote() != null && response.getQuote().getPrice() != null) {
                     GlobalQuoteResponse.StockQuote quote = response.getQuote();
-                    
-                    boolean alreadyExists = priceRepository.existsByTickerAndTradeDate(
-                            quote.getSymbol(), 
-                            quote.getLatestTradingDay()
-                    );
-
-                    if (alreadyExists) {
-                        log.info("Price data already exists for {} on {}. Skipping save.", 
-                                quote.getSymbol(), quote.getLatestTradingDay());
-                        continue;
+                    if (!quote.getLatestTradingDay().equals(LocalDate.now())) {
+                        if (priceRepository.existsByTickerAndExchangeAndTradeDate(baseTicker, exchange, quote.getLatestTradingDay())) {
+                            log.info("API returned older trade date ({}) which already exists. Skipping save.", quote.getLatestTradingDay());
+                            continue;
+                        }
                     }
-
                     Price priceEntity = new Price();
-                    priceEntity.setTicker(quote.getSymbol());
+                    String[] tickerExchange = quote.getSymbol().split("\\.");
+                    priceEntity.setTicker(tickerExchange[0]);
+                    priceEntity.setExchange(tickerExchange.length > 1 ? tickerExchange[1] : null);
                     priceEntity.setTradeDate(quote.getLatestTradingDay());
                     priceEntity.setOpenPrice(new BigDecimal(quote.getOpen()));
                     priceEntity.setHighPrice(new BigDecimal(quote.getHigh()));
@@ -80,16 +85,23 @@ public class StockPriceScheduler {
                     priceEntity.setClosePrice(new BigDecimal(quote.getPrice()));
                     priceEntity.setVolume(Long.parseLong(quote.getVolume()));
                     priceEntity.setFetchedAt(LocalDateTime.now());
-                    
-                    priceRepository.save(priceEntity);
+                    try {
+                        priceRepository.save(priceEntity);
+                    }
+                    catch (Exception e){
+                        log.error("Error occurred while saving data Exception :"+e.getMessage());
+                    }
                     log.info("Successfully saved new price for ticker: {}", ticker);
                 } else {
                     log.warn("Received empty or invalid response for ticker: {}", ticker);
                 }
-                
+
                  Thread.sleep(12500); // Uncomment if using free-tier API
-                
+
+            } catch (DataIntegrityViolationException e) {
+                log.warn("Duplicate constraint triggered for {}. It was likely inserted by another process. Skipping.", baseTicker);
             } catch (Exception e) {
+                // Catch network timeouts, JSON parsing errors, etc.
                 log.error("Failed to sync stock price for ticker: {}", ticker, e);
             }
         }

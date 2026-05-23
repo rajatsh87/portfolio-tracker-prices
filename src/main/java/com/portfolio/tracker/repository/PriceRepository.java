@@ -8,5 +8,5 @@ import java.time.LocalDate;
 @Repository
 public interface PriceRepository extends JpaRepository<Price, Long> {
     
-    boolean existsByTickerAndTradeDate(String ticker, LocalDate tradeDate);
+    boolean existsByTickerAndExchangeAndTradeDate(String ticker, String exchange, LocalDate tradeDate);
 }

@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/portfolio_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: qwerty1234 # <-- Change this to your actual MySQL local password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+portfolio:
+  api:
+    base-url: "https://www.alphavantage.co"
+    key:
+    timeout-ms: 5000
+  jobs:
+    stock-sync:
+      cron: "0 30 16 * * *"
+      zone: "Asia/Kolkata"
+server:
+  port: 8081

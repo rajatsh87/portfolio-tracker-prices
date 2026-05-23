@@ -15,6 +15,9 @@ public interface AssetCatalogRepository extends JpaRepository<AssetCatalog, Long
         String getExchange();
     }
 
-    @Query("SELECT a.ticker AS ticker, COALESCE(a.exchange, '') AS exchange FROM assets_catalog a WHERE a.portfolio_flag = true")
+    @Query(
+            value = "SELECT a.ticker AS ticker, COALESCE(a.exchange, '') AS exchange FROM assets_catalog a WHERE a.portfolio_flag = true",
+            nativeQuery = true
+    )
     List<AssetProjection> findPortfolioTickersWithExchange();
 }
