@@ -3,14 +3,13 @@ package com.portfolio.tracker.scheduler;
 import com.portfolio.tracker.client.StockApiClient;
 import com.portfolio.tracker.dto.GlobalQuoteResponse;
 import com.portfolio.tracker.entity.Price;
-import com.portfolio.tracker.repository.AssetCatalogRepository;
 import com.portfolio.tracker.repository.PriceRepository;
+import com.portfolio.tracker.repository.TransactionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 
@@ -26,29 +25,26 @@ public class StockPriceScheduler {
 
     private final StockApiClient stockApiClient;
     private final PriceRepository priceRepository;
-    private final AssetCatalogRepository assetCatalogRepository;
+    private final TransactionRepository transactionRepository;
 
-    public StockPriceScheduler(
-            StockApiClient stockApiClient,
-            PriceRepository priceRepository,
-            AssetCatalogRepository assetCatalogRepository) {
+    public StockPriceScheduler(StockApiClient stockApiClient, PriceRepository priceRepository, TransactionRepository transactionRepository) {
         this.stockApiClient = stockApiClient;
         this.priceRepository = priceRepository;
-        this.assetCatalogRepository = assetCatalogRepository;
+        this.transactionRepository = transactionRepository;
     }
 
     @Scheduled(cron = "${portfolio.jobs.stock-sync.cron}", zone = "${portfolio.jobs.stock-sync.zone}")
     @EventListener(ApplicationReadyEvent.class)
     public void syncStockPrices() {
         log.info("Starting daily stock price synchronization batch...");
-        List<AssetCatalogRepository.AssetProjection> activeAssets = assetCatalogRepository.findPortfolioTickersWithExchange();
+        List<TransactionRepository.AssetProjection> activeAssets = transactionRepository.findPortfolioTickersWithExchange();
 
         if (activeAssets.isEmpty()) {
             log.info("No active portfolio assets found in assets_catalog. Exiting job.");
             return;
         }
 
-        for (AssetCatalogRepository.AssetProjection asset : activeAssets) {
+        for (TransactionRepository.AssetProjection asset : activeAssets) {
             String baseTicker = asset.getTicker();
             String ticker = baseTicker;
             String exchange = asset.getExchange();
