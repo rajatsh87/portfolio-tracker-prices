@@ -1,8 +1,11 @@
 package com.portfolio.tracker.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+
 import java.time.LocalDate;
 
+@Data
 public class GlobalQuoteResponse {
 
     @JsonProperty("Global Quote")
@@ -11,6 +14,7 @@ public class GlobalQuoteResponse {
     public StockQuote getQuote() { return quote; }
     public void setQuote(StockQuote quote) { this.quote = quote; }
 
+    @Data
     public static class StockQuote {
         @JsonProperty("01. symbol")
         private String symbol;
@@ -32,6 +36,15 @@ public class GlobalQuoteResponse {
 
         @JsonProperty("07. latest trading day")
         private LocalDate latestTradingDay;
+
+        @JsonProperty("08. previous close")
+        private String previousClose;
+
+        @JsonProperty("09. change")
+        private String change;
+
+        @JsonProperty("10. change percent")
+        private String changePercentage;
 
         public String getSymbol() { return symbol; }
         public void setSymbol(String symbol) { this.symbol = symbol; }

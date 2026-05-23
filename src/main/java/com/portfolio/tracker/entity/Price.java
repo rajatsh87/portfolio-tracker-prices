@@ -39,6 +39,15 @@ public class Price {
     @Column(name = "close_price", nullable = false, precision = 10, scale = 4)
     private BigDecimal closePrice;
 
+    @Column(name = "previous_close", nullable = false, precision = 10, scale = 4)
+    private BigDecimal previousClose;
+
+    @Column(name = "change", nullable = false, precision = 10, scale = 4)
+    private BigDecimal change;
+
+    @Column(name = "change_percent", nullable = false)
+    private String changePercentage;
+
     private Long volume;
 
     @Column(name = "fetched_at")

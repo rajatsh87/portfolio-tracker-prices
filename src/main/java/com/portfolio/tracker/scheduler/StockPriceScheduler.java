@@ -81,6 +81,9 @@ public class StockPriceScheduler {
                     priceEntity.setClosePrice(new BigDecimal(quote.getPrice()));
                     priceEntity.setVolume(Long.parseLong(quote.getVolume()));
                     priceEntity.setFetchedAt(LocalDateTime.now());
+                    priceEntity.setPreviousClose(new BigDecimal(quote.getPreviousClose()));
+                    priceEntity.setChange(new BigDecimal(quote.getChange()));
+                    priceEntity.setChangePercentage(quote.getChangePercentage());
                     try {
                         priceRepository.save(priceEntity);
                     }
