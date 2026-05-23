@@ -42,11 +42,11 @@ public class Price {
     @Column(name = "previous_close", nullable = false, precision = 10, scale = 4)
     private BigDecimal previousClose;
 
-    @Column(name = "change", nullable = false, precision = 10, scale = 4)
-    private BigDecimal change;
+    @Column(name = "price_change", nullable = false, precision = 10, scale = 4)
+    private BigDecimal priceChange;
 
-    @Column(name = "change_percent", nullable = false)
-    private String changePercentage;
+    @Column(name = "change_percent", nullable = false, precision = 10, scale = 4)
+    private BigDecimal changePercentage;
 
     private Long volume;
 
